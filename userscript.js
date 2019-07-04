@@ -16,45 +16,63 @@
 
     // Settings
     document.fcaavSettings = {
-        intervalLastRun:     0,
-        intervalStorage:     undefined,
-        modifiedMarkerClass: "aria-alt-revealed",
+        styleElementId:        "fcaav",
+        labelElementClass:     "fcaav-class",
+        intervalLastRun:       0,
+        intervalStorage:       undefined,
+        modifiedMarkerClass:   "aria-alt-revealed",
 
         // Settings Filter 1
-        hideOwnProfileIcon:  true,
-        honorAriaHidden:     true, // Don't show the text if a parent anchor tag has `aria-hidden="true"` attribute
+        hideOwnProfileIcon:    true,
+        honorAriaHidden:       true,  // Don't show the text if a parent anchor tag has `aria-hidden="true"` attribute
 
-        showBoringResults:   false, // Show text snipits that say things like "No photo description available"
+        showBoringResults:     false, // Show text snipits that say things like "No photo description available"
         onlyShowImgMayContain: false,
 
-        styleDeclarations: [
-            "position: absolute",
-            "top: 0",
-            "background-color: hotpink !important",
-            "line-height: normal",
-            "margin: 5px",
-            "text-align: center",
-            "padding: 2px 5px",
-            "border-radius: 7px",
-            "border: 1px solid white",
-            "font-size: 12pt",
-            "z-index: 100",
-            "overflow: hidden"
-        ],
-
-        classStyles: {
-            "scaledImageFitWidth": "width: fit-content",
-            "scaledImageFitHeight": "width: fit-content",
-            "spotlight": "width: unset",
-            _default: "width: max-content"
+        styles: {
+            ".fcaav-class": {
+                position: "absolute",
+                top: "0",
+                "background-color": "hotpink !important",
+                "line-height": "normal",
+                margin: "5px",
+                "text-align": "center",
+                padding: "2px 5px",
+                "border-radius": "7px",
+                border: "1px solid white",
+                "font-size": "12pt",
+                "z-index": "100",
+                overflow: "hidden",
+                width: "max-content"
+            },
+            "img.scaledImageFitWidth + div.fcaav-class, img.scaledImageFitHeight + div.fcaav-class": { //Cant this by dynamically named after `labelElementClass`?
+                width: "fit-content"
+            },
+            "img.spotlight + div.fcaav-class": {
+                width: "unset"
+            },
+            "div.fcaav-class .collapseBtn": {
+                width:   "12px",
+                height:  "17px",
+                float:   "right",
+                padding: "1px 3px",
+                margin:  "1px 5px",
+                border:  "1px solid white"
+            },
+            "div.fcaav-class .collapseBtn.collapsable": {
+                margin: "1px 5px"
+            },
+            "div.fcaav-class .collapseBtn.collapsed": {
+                margin: "unset"
+            }
         },
 
-        collapsed: {
-            width: "12px",
-            height: "17px",
-            text: "+",
-            normalText: "X",
-            class: "collapsable"
+        collapseBtn: {
+            openText: "X",
+            closedText: "+",
+            class: "collapseBtn",
+            openClass: "collapsable",
+            closedClass: "collapsed"
         }
     };
 
@@ -66,14 +84,16 @@
 
         // Work around for full interval clear
         if(document.fcaavSettings.intervalLastRun + 1000 < Date.now()) {
-            document.fcaavSettings.intervalStorage = setInterval(revealAriaAlt, 200);
+            document.fcaavSettings.intervalStorage = setInterval(loop, 200);
         }
     });
 
 
-    function revealAriaAlt() {
-        // Work around for full interval clear
-        document.fcaavSettings.intervalLastRun = Date.now();
+    function loop() {
+        // Sanity(-ish) checks
+        intervalClearHack();
+
+        checkStyleElement();
 
         if (pageContentChanged) {
             //Get img tags from page, and put them in an array
@@ -98,6 +118,70 @@
         }
     }
 
+     function buildLabelElement(tImg, aTxt) {
+         var textDiv = document.createElement("DIV");
+
+         textDiv.classList.add(document.fcaavSettings.labelElementClass);
+
+         // Append collapse node
+         textDiv.appendChild(buildCollapseElement());
+
+         // Append text node
+         textDiv.appendChild(document.createTextNode("{ { " + aTxt + " } }"));
+
+         return textDiv;
+    }
+
+    function buildCollapseElement() {
+        var collapseNode = document.createElement("DIV");
+        collapseNode.classList.add(document.fcaavSettings.collapseBtn.class);
+        collapseNode.classList.add(document.fcaavSettings.collapseBtn.openClass);
+        collapseNode.collapsed = false;
+        collapseNode.appendChild(document.createTextNode(document.fcaavSettings.collapseBtn.openText));
+
+        collapseNode.addEventListener(
+            "click",
+            function(){
+                event.preventDefault();
+                event.cancelBubble = true;
+                event.stopPropagation();
+
+                if(this.collapsed) {
+                    this.parentNode.style.width = this.oldWidth;
+                    this.parentNode.style.height = this.oldHeight;
+
+                    // Remove old class, add new one
+                    this.classList.remove(document.fcaavSettings.collapseBtn.closedClass);
+                    this.classList.add(document.fcaavSettings.collapseBtn.openClass);
+
+                    // Point "collapsable" indication
+                    this.textContent = document.fcaavSettings.collapseBtn.openText;
+
+                    // Last thing we do
+                    this.collapsed = false;
+                }
+                else {
+                    // fisrt thing we do
+                    this.collapsed = true;
+
+                    // Point "collapsed" indication
+                    this.textContent = document.fcaavSettings.collapseBtn.closedText;
+
+                    // Remove old class, add new one
+                    this.classList.remove(document.fcaavSettings.collapseBtn.openClass);
+                    this.classList.add(document.fcaavSettings.collapseBtn.closedClass);
+
+                    this.oldWidth = this.parentNode.style.width;
+                    this.oldHeight = this.parentNode.style.height;
+
+                    this.parentNode.style.width = this.offsetWidth + "px";
+                    this.parentNode.style.height = this.offsetHeight + "px";
+                }
+            },
+            {capture: true});
+
+        return collapseNode;
+    }
 
     function filterAttributes(tImg) {
         // Filter out if marked as having already been modified
@@ -121,7 +205,7 @@
                 return ariaAttr;
             }
 
-            if(altAttr) {
+            if(altAttr && !altAttr.match("No photo description available")) {
                 if(document.fcaavSettings.onlyShowImgMayContain && !altAttr.match("Image may contain:")) {
                     return false;
                 }
@@ -129,6 +213,8 @@
                 return altAttr;
             }
         }
+
+        return false;
     }
 
 
@@ -161,82 +247,47 @@
         return false;
     }
 
+    function checkStyleElement() {
+        var styleElement = document.getElementById(document.fcaavSettings.styleElementId);
 
-    function buildLabelElement(tImg, aTxt) {
-        var textDiv = document.createElement("DIV");
+        if(!styleElement) {
+            addStyleElement();
+        }
+    }
 
-        // CSS Builder
-        var cssText = "";
+    function addStyleElement() {
+        var style = document.createElement('style');
+        style.id = document.fcaavSettings.styleElementId;
 
-        var styleDeclarations = document.fcaavSettings.styleDeclarations;
+        // Build CSS from js Object
+        style.innerHTML = objectToCss(document.fcaavSettings.styles);
 
-        var useDefaultStyle = true;
+        // Get the first script tag
+        var ref = document.querySelector('script');
 
-        for(var classStyle in document.fcaavSettings.classStyles) {
-            if(tImg.className.match(classStyle)) {
-                useDefaultStyle = false;
-                styleDeclarations.push(document.fcaavSettings.classStyles[classStyle]);
+        // Insert our new styles before the first script tag
+        ref.parentNode.insertBefore(style, ref);
+    }
+
+    function objectToCss(styleObject) {
+        var innerHtml = "";
+
+        // First loop classes
+        for(var classes in styleObject) {
+            innerHtml += classes + "{\n";
+
+            // Second loop decleratons
+            for(var declerations in styleObject[classes]) {
+                innerHtml += "\t" + declerations + ": " + styleObject[classes][declerations] + ";\n";
             }
+            innerHtml += "}\n\n";
         }
 
-        if(useDefaultStyle) {
-            styleDeclarations.push(document.fcaavSettings.classStyles._default);
-        }
+        return innerHtml;
+    }
 
-        var sdLen = styleDeclarations.length;
-
-        for(var i = 0; i < sdLen; ++i) {
-            cssText += styleDeclarations[i] + (sdLen - 1 == i ? ";" : "; ");
-        }
-
-        textDiv.style.cssText = cssText;
-
-        // Append collapse node
-        var collapseNode = document.createElement("DIV");
-        collapseNode.style.float = "right";
-        collapseNode.style.padding = "1px 3px";
-        collapseNode.style.margin = "1px 5px";
-        collapseNode.style.border = "1px solid white";
-        collapseNode.appendChild(document.createTextNode(document.fcaavSettings.collapsed.normalText));
-
-        collapseNode.addEventListener(
-            "click",
-            function(){
-                event.preventDefault();
-                event.cancelBubble = true;
-                event.stopPropagation();
-
-                if(this.collapsed) {
-                    this.parentNode.style.width = this.oldWidth;
-                    this.parentNode.style.height = this.oldHeight;
-
-                    this.style.margin = "1px 5px";
-
-                    this.textContent = document.fcaavSettings.collapsed.normalText;
-
-                    this.collapsed = false;
-                }
-                else {
-                    this.collapsed = true;
-
-                    this.textContent = document.fcaavSettings.collapsed.text;
-
-                    this.oldWidth = this.parentNode.style.width;
-                    this.oldHeight = this.parentNode.style.height;
-
-                    this.style.margin = "unset";
-
-                    this.parentNode.style.width = this.offsetWidth + "px";
-                    this.parentNode.style.height = this.offsetHeight + "px";
-                }
-            },
-            {capture: true});
-
-        textDiv.appendChild(collapseNode);
-
-        // Append text node
-        textDiv.appendChild(document.createTextNode("{ { " + aTxt + " } }"));
-
-        return textDiv;
+    function intervalClearHack() {
+        // Work around for full interval clear
+        document.fcaavSettings.intervalLastRun = Date.now();
     }
 })();
