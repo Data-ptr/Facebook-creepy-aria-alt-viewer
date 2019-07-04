@@ -1,6 +1,9 @@
 # Facebook-creepy-aria-alt-viewer
 Quick hacks to easily display creepy FB AI image guesses (Userscript)
 
+## Example of output
+<img src="https://github.com/Data-ptr/Facebook-creepy-aria-alt-viewer/blob/master/Screen%20Shot%202019-07-03%20at%2010.47.36%20PM.png?raw=true" alt="It knows what memes are..." width="500px"/>
+
 ## Install
 1. Get yourself a Userscript plugin/extension
 1. Make a new script, paste this one in or w/e
